@@ -3,5 +3,3 @@ Script For Scraping Media Episodes and Download it from faselhd.com :
  ----> send a search query and print the results list (X)
  ----> Choose Title,start_episodes,end_episodes (X)
  ----> Download Episodes with wget (X)
-
-(Optional) : Transfer it to GUI with Tkinter or PyQT5 
