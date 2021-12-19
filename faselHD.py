@@ -3,10 +3,9 @@ import requests
 import os
 import re
 from bs4 import BeautifulSoup as bs
-from selenium.webdriver import Chrome
 from youtube_dl.utils import random_user_agent
 soup = lambda url : bs(requests.get(url).content,"html.parser")
-
+dir_path = os.path.dirname(os.path.realpath(__file__))
 def search(user_input):
     search_URL = "https://www.faselhd.pro/?s=" + user_input.strip()
     search_result = soup(search_URL)
@@ -41,11 +40,23 @@ def select_episodes(media_url):
         sel = lambda i,opt : opt if i == "" else episodes_num.index(int(i))
         return episodes[sel(start,0):sel(end,len(episodes))]
 
-def opn_brow(site) :
-    driver = Chrome("/home/i5/Scripts/FaselHD/chromedriver")
-    driver.get(site)
-    html = driver.page_source
-    driver.close()
+def direct_link(site):
+    headers = {
+        'Host': 'www.faselhd.pro',
+        'Sec-Ch-Ua': '" Not A;Brand";v="99", "Chromium";v="96"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Dest': 'iframe',
+        'Referer': 'https://www.faselhd.pro/',
+        'Accept-Encoding': 'gzip, deflate',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+    html = requests.get(site,headers=headers).text
     return html
 
 def CQuality(available,prefer) :
@@ -65,7 +76,7 @@ def download(links,folder,normal=True):
             url = down_page.select_one(".dl-link").a["href"]
             os.system(f"wget '{url}' -O '{title}' --tries 10 -c --user-agent='{random_user_agent()}'")
         else : 
-            link = opn_brow(link.find("iframe")["src"])
+            link = direct_link(link.find("iframe")["src"])
             videoURL = re.findall("\"file\":\"(.*)\",\"hlshtml\"",link)[0].replace("\\","")
             available = re.findall(r",*(\d+)+,p*",videoURL)
             if available : newVideoURL = re.sub(r",(.*),",f",{CQuality(available,quality)}",videoURL)
@@ -78,7 +89,7 @@ def main() :
         main_page = search(input("Search : "))
     selected = display_results(main_page)
     episodes = select_episodes(main_page[selected])
-    download(episodes,"/home/i5/Scripts/Downloads/"+selected,normal=False)
+    download(episodes,dir_path+selected,normal=False)
     
 try : main()
 except KeyboardInterrupt : print("\n\nExit .....")
