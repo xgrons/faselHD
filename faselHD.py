@@ -3,9 +3,12 @@ import requests
 import os
 import re
 from bs4 import BeautifulSoup as bs
-from youtube_dl.utils import random_user_agent
+from pyppeteer import launch
+import asyncio
+
 soup = lambda url : bs(requests.get(url).content,"html.parser")
 dir_path = os.path.dirname(os.path.realpath(__file__))
+
 def search(user_input):
     search_URL = "https://www.faselhd.pro/?s=" + user_input.strip()
     search_result = soup(search_URL)
@@ -40,28 +43,20 @@ def select_episodes(media_url):
         sel = lambda i,opt : opt if i == "" else episodes_num.index(int(i))
         return episodes[sel(start,0):sel(end,len(episodes))]
 
-def direct_link(site):
-    headers = {
-        'Host': 'www.faselhd.pro',
-        'Sec-Ch-Ua': '" Not A;Brand";v="99", "Chromium";v="96"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
-        'Upgrade-Insecure-Requests': '1',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-        'Sec-Fetch-Site': 'same-origin',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Dest': 'iframe',
-        'Referer': 'https://www.faselhd.pro/',
-        'Accept-Encoding': 'gzip, deflate',
-        'Accept-Language': 'en-US,en;q=0.9',
-    }
-    html = requests.get(site,headers=headers).text
-    return html
+async def opn_brow(site) :
+    browser = await launch()
+    page = await browser.newPage()
+    await page.goto(site)
+    page_content = await page.content()
+    await browser.close()
+    return page_content
 
 def CQuality(available,prefer) :
     all_qual = ["360","480","720","1080"]
-    return prefer if prefer in available else CQuality(available,all_qual[all_qual.index(prefer) - 1])
+    if prefer in all_qual : 
+        return prefer if prefer in available else CQuality(available,all_qual[all_qual.index(prefer) - 1])
+    else :
+        return prefer
 
 def download(links,folder,normal=True):
     if not(normal) : quality = input("Choose Your Preferde Resolution : [1080,720,480,360] ? ")
@@ -76,10 +71,12 @@ def download(links,folder,normal=True):
             url = down_page.select_one(".dl-link").a["href"]
             os.system(f"wget '{url}' -O '{title}' --tries 10 -c --user-agent='{random_user_agent()}'")
         else : 
-            link = direct_link(link.find("iframe")["src"])
+            link = asyncio.get_event_loop().run_until_complete(opn_brow(link.find("iframe")["src"]))
             videoURL = re.findall("\"file\":\"(.*)\",\"hlshtml\"",link)[0].replace("\\","")
             available = re.findall(r",*(\d+)+,p*",videoURL)
             if available : newVideoURL = re.sub(r",(.*),",f",{CQuality(available,quality)}",videoURL)
+            try : os.mkdir(folder)
+            except FileExistsError : os.chdir(folder)
             os.system(f"downloadm3u8 -o '{folder}/{title}' '{newVideoURL or videoURL}'")
 
 def main() :
@@ -90,6 +87,6 @@ def main() :
     selected = display_results(main_page)
     episodes = select_episodes(main_page[selected])
     download(episodes,dir_path+selected,normal=False)
-    
+
 try : main()
 except KeyboardInterrupt : print("\n\nExit .....")
