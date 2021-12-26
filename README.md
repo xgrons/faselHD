@@ -7,4 +7,4 @@
  
  * Choose Resolution of the video
  
- * Download Episodes with wget 
+ * Download Episodes 
