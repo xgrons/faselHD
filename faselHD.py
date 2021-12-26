@@ -3,8 +3,8 @@ import requests
 import os
 import re
 from bs4 import BeautifulSoup as bs
-from pyppeteer import launch
-import asyncio
+from youtube_dl.utils import random_user_agent
+
 
 soup = lambda url : bs(requests.get(url).content,"html.parser")
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -43,14 +43,10 @@ def select_episodes(media_url):
         sel = lambda i,opt : opt if i == "" else episodes_num.index(int(i))
         return episodes[sel(start,0):sel(end,len(episodes))]
 
-async def opn_brow(site) :
-    browser = await launch()
-    page = await browser.newPage()
-    await page.goto(site)
-    page_content = await page.content()
-    await browser.close()
-    return page_content
-
+def getDirectLink(site) : 
+    headers = {'User-Agent': f'{random_user_agent()}'}
+    return requests.get(site,headers=headers).text
+    
 def CQuality(available,prefer) :
     all_qual = ["360","480","720","1080"]
     if prefer in all_qual : 
@@ -71,7 +67,7 @@ def download(links,folder,normal=True):
             url = down_page.select_one(".dl-link").a["href"]
             os.system(f"wget '{url}' -O '{title}' --tries 10 -c --user-agent='{random_user_agent()}'")
         else : 
-            link = asyncio.get_event_loop().run_until_complete(opn_brow(link.find("iframe")["src"]))
+            link = getDirectLink(link.find("iframe")["src"])
             videoURL = re.findall("\"file\":\"(.*)\",\"hlshtml\"",link)[0].replace("\\","")
             available = re.findall(r",*(\d+)+,p*",videoURL)
             if available : newVideoURL = re.sub(r",(.*),",f",{CQuality(available,quality)}",videoURL)
